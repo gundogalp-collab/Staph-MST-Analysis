@@ -109,7 +109,6 @@ def token_levenshtein(a, b):
 G = nx.Graph()
 for spa in spa_types: G.add_node(spa)
 
-# Herkesin herkese uzaklığını hesapla (Full Matrix)
 for a, b in combinations(spa_types, 2):
     d = token_levenshtein(token_dict[a], token_dict[b])
     G.add_edge(a, b, weight=d)
