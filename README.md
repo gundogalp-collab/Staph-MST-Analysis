@@ -8,7 +8,7 @@ A custom Python script designed to construct Minimum Spanning Trees (MST) based 
 
 ## 📌 Key Features
 
-* **Automated Data Filtering:** Automatically excludes Non-typeable (NT) isolates and sequences with fewer than 5 repeat units to ensure clustering robustness.
+* **Automated Data Filtering:** Automatically excludes Non-typeable (NT) isolates.
 * **Alignment-Based Clustering:** Calculates genetic divergence using the **Levenshtein edit distance** algorithm.
 * **Advanced Network Layout:** Utilizes the Fruchterman-Reingold force-directed algorithm with custom spatial overlap-prevention to ensure clean, readable graphs.
 * **Proportional Node Visualization:** Node sizes are dynamically scaled based on isolate frequency.
@@ -31,7 +31,7 @@ Your dataset **must** include the following exact column names (case-sensitive) 
 ## ⚙️ Methodology & Parameters
 
 ### Data Filtering and Preprocessing
-Prior to network construction, strict exclusion criteria are applied programmatically to minimize analytical noise associated with short-sequence homoplasy. "NT" isolates and *spa* types containing fewer than five repeat units are filtered out.
+Prior to network construction, strict exclusion criteria are applied programmatically to minimize analytical noise associated with short-sequence homoplasy. "NT" isolates.
 
 ### Distance Calculation
 The genetic distance between any two given *spa* types is calculated using the **Levenshtein edit distance algorithm**. This algorithm determines the minimum number of operations required to transform one repeat sequence into another, accurately reflecting micro-evolutionary changes.
