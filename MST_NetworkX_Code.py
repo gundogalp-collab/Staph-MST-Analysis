@@ -6,9 +6,10 @@ import numpy as np
 import matplotlib.patches as mpatches
 from matplotlib.lines import Line2D
 import re
+import matplotlib.patheffects as PathEffects
 
 # =========================
-# 1.File Reading
+# 1️⃣ File Reading
 # =========================
 df = pd.read_excel("Supplementary File.xlsx", header=2)
 df.columns = df.columns.str.strip()
@@ -20,9 +21,12 @@ source_col = "Sample Source"
 df = df[[spa_col, repeat_col, source_col]].dropna()
 
 # =========================
-# 2.Filtering and report
+# 2️⃣ Filter & Feedback
 # =========================
 
+# ==========================================
+# 2. Filtering 
+# ==========================================
 def get_clean_tokens(text):
     if not isinstance(text, str): return []
     clean = re.sub(r'[-,]', ' ', text)
@@ -31,54 +35,12 @@ def get_clean_tokens(text):
 df['repeat_tokens'] = df[repeat_col].apply(get_clean_tokens)
 df['repeat_len'] = df['repeat_tokens'].apply(len)
 
-print("\n" + "="*50)
-print("EXCLUSION REPORT")
-print("="*50)
-
-# 1. Find NT's
-nt_data = df[df[spa_col].astype(str) == "NT"]
-if not nt_data.empty:
-    print(f"\n1️⃣  [NT] Non-Typeable ones:")
-    print(f"    A total of {len(nt_data)} NT's were deleted")
-else:
-    print("\n1️⃣  NT (Non-Typeable)")
-
-# 2. Find short repeats (<5) 
-short_repeats_data = df[
-    (df[spa_col].astype(str) != "NT") & 
-    (df['repeat_len'] < 5)
-]
-
-if not short_repeats_data.empty:
-    print(f"\n2️⃣  [SHORT] Short Repeats")
-    short_groups = short_repeats_data.groupby(spa_col)
-    
-    for spa_name, group in short_groups:
-        length = group['repeat_len'].iloc[0]
-        count = len(group)
-        sequence = group[repeat_col].iloc[0]
-        print(f"   ❌ {spa_name:<8} | Length: {length} | Isolate count: {count} | Sequence: {sequence}")
-else:
-    print("\n2️⃣  non short repeats were found")
-
-print("="*50 + "\n")
-
-df_filtered = df[
-    (df[spa_col].astype(str) != "NT") & 
-    (df['repeat_len'] >= 5) 
-].copy()
-
-# General Report
-print("--- FINAL STATISTICS ---")
-print(f"Total start data : {len(df)}")
-print(f"Left after filtering    : {len(df_filtered)}")
-print(f"Spa types that entered analyses  : {df_filtered[spa_col].nunique()}")
-print("-" * 30)
+df_filtered = df[df[spa_col].astype(str) != "NT"].copy()
 
 df = df_filtered
 
 # =========================
-# 3️.Groupping
+# 3️⃣ Group
 # =========================
 grouped = df.groupby(spa_col)
 spa_types = []
@@ -93,7 +55,7 @@ for name, group in grouped:
 token_dict = rep_dict
 
 # =========================
-# 4️.Edit Distance (Levenshtein) 
+# 4️⃣ Edit Distance (Levenshtein) 
 # =========================
 def token_levenshtein(a, b):
     m, n = len(a), len(b)
@@ -118,21 +80,26 @@ if len(G.nodes) > 0:
     mst = nx.minimum_spanning_tree(G, weight="weight")
     
     # =========================
-    # 5. Visualition
+    # 5️⃣ Visualizing
     # =========================
     source_distribution = df.groupby([spa_col, source_col]).size().unstack(fill_value=0).to_dict("index")
     sources = df[source_col].unique()
     base_colors = plt.cm.tab10.colors
-    color_map = {source: base_colors[i % len(base_colors)] for i, source in enumerate(sources)}
-    if "Hospital" in color_map: color_map["Hospital"] = "#FFD700"
 
-    # --- NODE SPACING ---
+
+    color_map = {
+        "Hospital": "#D90429",         
+        "Dairy Farm": "#0077B6",       
+        "Dairy Plant": "#00B4D8",      
+        "Livestock farm": "#2A9D8F",   
+        "Slaughterhouse": "#E76F51",   
+        "Meat Plant": "#6A4C93"        
+        }
+
     node_radii = {n: 0.03 + (np.sqrt(counts[n]) * 0.015) for n in mst.nodes()}
     
-    # Layout Calculating
-    pos = nx.spring_layout(mst, k=1.5, iterations=1000, seed=42)
+    pos = nx.spring_layout(mst, k=3.5, iterations=1000, seed=42)
 
-    # Overlap preventing
     def prevent_overlap(pos, radii, padding=0.06, iterations=50):
         pos_new = pos.copy()
         keys = list(pos_new.keys())
@@ -159,25 +126,23 @@ if len(G.nodes) > 0:
     pos = prevent_overlap(pos, node_radii, padding=0.02)
 
     # =========================
-    # 6.Drawing
+    # 6️⃣ Draw
     # =========================
     plt.figure(figsize=(18, 16))
+    plt.gca().set_aspect("equal")
 
-    # Edges
     edges_thick =  [(u,v) for u,v,d in mst.edges(data=True) if d['weight'] <= 2.2]
     edges_thinner =[(u,v) for u,v,d in mst.edges(data=True) if 2.2 < d['weight'] <= 3.4]
     edges_thinnest=[(u,v) for u,v,d in mst.edges(data=True) if 3.4 < d['weight'] <= 4.59]
     edges_dashed = [(u,v) for u,v,d in mst.edges(data=True) if 4.59 < d['weight'] <= 5.8]
     edges_dotted = [(u,v) for u,v,d in mst.edges(data=True) if d['weight'] > 5.8]
 
-    # Line styles
     nx.draw_networkx_edges(mst, pos, edgelist=edges_thick, width=3.5, edge_color="black", style="solid", alpha=0.8)
     nx.draw_networkx_edges(mst, pos, edgelist=edges_thinner, width=2.0, edge_color="black", style="solid", alpha=0.8)
     nx.draw_networkx_edges(mst, pos, edgelist=edges_thinnest, width=1.0, edge_color="black", style="solid", alpha=0.8)
     nx.draw_networkx_edges(mst, pos, edgelist=edges_dashed, width=1.2, edge_color="black", style="dashed", alpha=0.8)
     nx.draw_networkx_edges(mst, pos, edgelist=edges_dotted, width=1.2, edge_color="black", style="dotted", alpha=0.8)
 
-    # Nodes
     for node in mst.nodes():
         x, y = pos[node]
         sizes = list(source_distribution[node].values())
@@ -188,42 +153,41 @@ if len(G.nodes) > 0:
         start = 0
         for frac, label in zip([s/total for s in sizes], labels):
             theta = frac * 360
-            wedge = mpatches.Wedge((x, y), radius, start, start+theta, facecolor=color_map[label], edgecolor="black", linewidth=0.5)
+            wedge = mpatches.Wedge((x, y), radius, start, start+theta, facecolor=color_map[label], edgecolor="black", linewidth=0.5, zorder=10)
             plt.gca().add_patch(wedge)
             start += theta
 
-    # Etiketler
     for node in mst.nodes():
         x, y = pos[node]
-        font_size = 7 if counts[node] < 5 else 9
-        plt.text(x, y, node, ha='center', va='center', fontsize=font_size, fontweight='bold', zorder=10, 
-                 bbox=dict(facecolor='white', edgecolor='none', alpha=0.6, boxstyle='round,pad=0.1'))
+        font_size = 6 if counts[node] < 5 else 8
+        
+        # Siyah yazı, ama etrafında beyaz parlama efekti var
+        txt = plt.text(x, y, node, ha='center', va='center', fontsize=font_size, 
+                       fontweight='bold', zorder=10, color='black')
+        txt.set_path_effects([PathEffects.withStroke(linewidth=2.5, foreground='w')])
+    # =========================
+    # 7️⃣ Legend
+    # =========================
 
-    # =========================
-    # 7️.Legend
-    # =========================
-    
-    # Sources
     source_patches = [mpatches.Patch(color=color_map[s], label=s) for s in sources]
-    first_legend = plt.legend(handles=source_patches, title="Sample Source", loc="upper left", frameon=True)
+    first_legend = plt.legend(handles=source_patches, title="Sample Source", loc="upper left", bbox_to_anchor=(-0.25,1), frameon=True)
     plt.gca().add_artist(first_legend)
-    
-    # Distances
+
     line_lines = [
-        Line2D([0], [0], color='black', lw=3.5, label='Diff ≤ 2.2'),
-        Line2D([0], [0], color='black', lw=2.0, label='2.2 < Diff ≤ 3.4'),
-        Line2D([0], [0], color='black', lw=1.0, label='3.4 < Diff ≤ 4.59'),
-        Line2D([0], [0], color='black', ls='dashed', label='4.59 < Diff ≤ 5.8'),
-        Line2D([0], [0], color='black', ls='dotted', label='Diff > 5.8')
+        Line2D([0], [0], color='black', lw=3.5, label='Distance ≤ 2.2'),
+        Line2D([0], [0], color='black', lw=2.0, label='2.2 < Distance ≤ 3.4'),
+        Line2D([0], [0], color='black', lw=1.0, label='3.4 < Distance ≤ 4.59'),
+        Line2D([0], [0], color='black', ls='dashed', label='4.59 < Distance ≤ 5.8'),
+        Line2D([0], [0], color='black', ls='dotted', label='Distance > 5.8')
     ]
     plt.legend(handles=line_lines, title="Genetic Distance", loc="lower right", frameon=True)
 
-    plt.title(f"Minimum Spanning Tree of spa Types\n(Node size ∝ Frequency; Filter: Repeats ≥ 5, No NT)", fontsize=16, fontweight='bold')
+    #plt.title(f"Minimum Spanning Tree of spa Types\n(Node size ∝ Frequency; Filter: Repeats ≥ 5, No NT)", fontsize=16, fontweight='bold')
     plt.axis("off")
     plt.tight_layout()
-    plt.savefig("spa_MST_Strict_Sized.png", dpi=300)
+    plt.savefig("spa_MST_Strict_Sized.png", dpi=600, bbox_inches="tight")
     plt.show()
 
 else:
-    print(" No data suitable for analyses, empty data set")
-    print("Check repeat length.")
+    print("No data found")
+    print("Check repeat datas")
